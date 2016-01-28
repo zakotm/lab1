@@ -36,35 +36,35 @@ typedef struct {
 } OpCode;
 
 const int opcodeLookupTableSize = 28;
-OpCode opcodeLookupTable[] = {
-		{	"ADD",		1	},
-		{	"AND",		5	},
-		{	"BR",		0	},
-		{	"BRn",		0	},
-		{	"BRz",		0	},
-		{	"BRp",		0	},
-		{	"BRzp",		0	},
-		{	"BRnp",		0	},
-		{	"BRnz",		0	},
-		{	"BRnzp",	0	},
-		{	"HALT",		15	},
-		{	"JMP",		12	},
-		{	"JSR",		4	},
-		{	"JSRR",		4	},
-		{	"LDB",		2	},
-		{	"LDW",		6	},
-		{	"LEA",		14	},
-		{	"NOP",		0	},
-		{	"NOT",		9	},
-		{	"RET",		12	},
-		{	"LSHF",		13	},
-		{	"RSHFL",	13	},
-		{	"RSHFA",	13	},
-		{	"RTI",		8	},
-		{	"STB",		3	},
-		{	"STW",		7	},
-		{	"TRAP",		15	},
-		{	"XOR",		9	}
+const OpCode opcodeLookupTable[] = {
+		{	"add",		1	},
+		{	"and",		5	},
+		{	"br",		0	},
+		{	"brn",		0	},
+		{	"brz",		0	},
+		{	"brp",		0	},
+		{	"brzp",		0	},
+		{	"brnp",		0	},
+		{	"brnz",		0	},
+		{	"brnzp",	0	},
+		{	"halt",		15	},
+		{	"jmp",		12	},
+		{	"jsr",		4	},
+		{	"jsrr",		4	},
+		{	"ldb",		2	},
+		{	"ldw",		6	},
+		{	"lea",		14	},
+		{	"nop",		0	},
+		{	"not",		9	},
+		{	"ret",		12	},
+		{	"lshf",		13	},
+		{	"rshfl",	13	},
+		{	"rshfa",	13	},
+		{	"rti",		8	},
+		{	"stb",		3	},
+		{	"stw",		7	},
+		{	"trap",		15	},
+		{	"xor",		9	}
 };
 
 
@@ -123,7 +123,14 @@ void printSymbolTable() {
 	Output: The numerical opcode, or -1 if not an opcode name
 */
 int getOpcode(const char* opcodeName) {
-	printf("WARNING: getOpcode() is not yet implemented\n");
+	int i = 0;
+	while (i < opcodeLookupTableSize) {
+		if (strcmp(opcodeName,opcodeLookupTable[i].opName) == 0) {
+			return opcodeLookupTable[i].opcode;
+		}
+		i++;
+	}
+
 	return -1;
 }
 
