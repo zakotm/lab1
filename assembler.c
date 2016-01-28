@@ -142,7 +142,14 @@ int isValidLabel(const char* labelName) {
 	Output: the address of that label, or -1 if the label doesn't exist in the table
 */
 int getLabelAddress(const char* labelName) {
-	printf("WARNING: getLabelAddress() is not yet implemented\n");
+	int i = 0;
+	while (i < symbolTableSize) {
+		if (strcmp(labelName, symbolTable[i].label) == 0) {
+			return symbolTable[i].address;
+		}
+		i++;
+	}
+
 	return -1;
 }
 
