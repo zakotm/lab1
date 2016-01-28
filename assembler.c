@@ -430,12 +430,15 @@ int main(int argc, char* argv[]) {
 
 
 
+
 	/*
 		Handle .ORIG Pseudo-Op
 			- do this first since it will be needed in both passes
 			- set "startAddress" value or handle any errors
 	*/
 	/*lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );*/
+
+
 
 
 	/*
@@ -457,7 +460,6 @@ int main(int argc, char* argv[]) {
 
 				} else {
 					/* invalid label or label is already in the table */
-					printf("EXITING: %s     %i\n",lLabel,isValidLabel(lLabel));
 					exit(4);
 				}
 			}
@@ -468,6 +470,8 @@ int main(int argc, char* argv[]) {
 		}
 	} while( lRet != DONE );
 	printSymbolTable();
+
+
 
 
 	/*
@@ -489,22 +493,13 @@ int main(int argc, char* argv[]) {
 
 
 
-
-
-
-
-
 	/* Clean Up? */
-	/* do we need to clean up here? all those char* (strings) we used? symbolTable? */
+	/* do we need to clean up the symbolTable? */
 
 
 
 
-
-
-
-
-     /* Close Source Files */
-     fclose(infile);
-     fclose(outfile);
+    /* Close Source Files */
+    fclose(infile);
+    fclose(outfile);
 }
