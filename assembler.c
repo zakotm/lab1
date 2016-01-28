@@ -83,6 +83,7 @@ const OpCode opcodeLookupTable[] = {
 */
 #define MAX_LABEL_LEN 20
 #define MAX_SYMBOLS 255
+#define MAX_ADDRESS 65536 /* 16bit max number */
 
 typedef struct {
 	int address;
@@ -94,14 +95,14 @@ Label symbolTable[MAX_SYMBOLS];
 
 /* debugging method */
 void printSymbolTable() {
-	printf("+++++++++++Symbol Table++++++++++\n");
+	printf("+++Symbol Table+++\n");
 	int i;
 	for (i = 0; i < symbolTableSize; i++) {
 		printf(	"0x%.4X\t%s\n",
 				symbolTable[i].address,
 				symbolTable[i].label);
 	}
-	printf("+++++++++++++++++++++++++++++++++\n");
+	printf("++++++++++++++++++\n");
 }
 
 
@@ -305,6 +306,9 @@ int strToNum( char * pStr )
 	};
 
 
+	/* Reads a line and parses it into pLabel, pOpcode, pArg1, pArg2, pArg3, and pArg4. All input streams are converted
+		to lower case, so all comparisons in the entire assembler are done in lower case, as everything is case
+		insensitive. */
 	int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
 							char ** pArg1, char ** pArg2, char ** pArg3, char ** pArg4)
 	{
@@ -423,7 +427,6 @@ int main(int argc, char* argv[]) {
 
 
 
-
 	char lLine[MAX_LINE_LENGTH + 1], *lLabel, *lOpcode, *lArg1, *lArg2, *lArg3, *lArg4;
 	int lRet;
 	int startAddress;
@@ -434,9 +437,30 @@ int main(int argc, char* argv[]) {
 	/*
 		Handle .ORIG Pseudo-Op
 			- do this first since it will be needed in both passes
-			- set "startAddress" value or handle any errors
+			- set "startAddress" value or handle any errors (code 3)
 	*/
-	/*lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );*/
+	int foundOrigPseudOp = 0;
+
+	do {
+		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
+
+		if ( strcmp(lOpcode,".orig") == 0 ) {
+			foundOrigPseudOp = 1;
+		}
+
+		if ( !foundOrigPseudOp  &&  (strcmp(lLabel,"") != 0  ||  strcmp(lOpcode,"") != 0) ) {
+			/* there is a label or opcode before .ORIG pseudo-op */
+			exit(4);
+		}
+
+	} while (!foundOrigPseudOp);
+
+	/* handle orig start address */
+	startAddress = strToNum(lArg1);
+	if (startAddress % 2 == 1  ||  startAddress > MAX_ADDRESS) {
+		/* misaligned or too large for 16 bit adress space */
+		exit(3);
+	}
 
 
 
@@ -445,12 +469,10 @@ int main(int argc, char* argv[]) {
 		First Pass to Build Symbol Table
 	*/
 	int opCount = 0;
-	do
-	{
+	do {
 		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
 		
-		if( lRet != DONE && lRet != EMPTY_LINE )
-		{
+		if( lRet != DONE && lRet != EMPTY_LINE ) {
 			if (strcmp(lLabel,"")) { /* if label is blank, there is no label on this line of the sourcecode */
 				if (isValidLabel(lLabel)  &&  getLabelAddress(lLabel) == -1) {
 
@@ -478,7 +500,7 @@ int main(int argc, char* argv[]) {
 		Second Pass to Encode Operations
 	*/
 
-	rewind(infile); /* sets file position to beginning of file */
+	rewind(infile); /* sets file position back to beginning of file */
 
 	do
 	{
@@ -493,8 +515,16 @@ int main(int argc, char* argv[]) {
 
 
 
+
+
+
+
 	/* Clean Up? */
 	/* do we need to clean up the symbolTable? */
+
+
+
+
 
 
 
