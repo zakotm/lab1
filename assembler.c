@@ -73,10 +73,21 @@ int getOpcode(const char* opcodeName) {
 
 /*
 	Input: String to determine if it is a name of a valid pseodo-op
-	Output: 0 if not a pseodo-op name, 1 otherwise
+	Output: 1 if is a pseodo-op name, 0 otherwise
 */
 int isValidPseudoOp(const char* pseudoopName) {
-	printf("WARNING: isValidPseudoOp() is not yet implemented\n");
+	if (strcmp(pseudoopName,".orig") == 0) {
+		return 1;
+	}
+
+	if (strcmp(pseudoopName,".fill") == 0) {
+		return 1;
+	}
+
+	if (strcmp(pseudoopName,".end") == 0) {
+		return 1;
+	}
+
 	return 0;
 }
 
