@@ -3,6 +3,8 @@ Name 1: Michael Stecklein
 Name 2: 
 UTEID 1: mrs4239
 UTEID 2: 
+
+- What is "adequate documentation"?
 */
 
 
@@ -11,6 +13,62 @@ UTEID 2:
 #include <string.h>	/* String operations library */
 #include <ctype.h>	/* Library for useful character operations */
 #include <limits.h>	/* Library for definitions of common variable type characteristics */
+
+
+
+
+
+
+
+
+
+
+/*
+	Op-Code Definitions:
+
+	ADD, AND, BR (all 8 variations), HALT, JMP, JSR, JSRR, LDB, LDW, 
+	LEA, NOP, NOT, RET, LSHF, RSHFL, RSHFA, RTI, STB, STW, TRAP, XOR
+*/
+#define MAX_OPNAME_LEN		5
+typedef struct {
+	char opName[MAX_OPNAME_LEN+1];
+	int opcode;
+} OpCode;
+
+const int opcodeLookupTableSize = 28;
+OpCode opcodeLookupTable[] = {
+		{	"ADD",		1	},
+		{	"AND",		5	},
+		{	"BR",		0	},
+		{	"BRn",		0	},
+		{	"BRz",		0	},
+		{	"BRp",		0	},
+		{	"BRzp",		0	},
+		{	"BRnp",		0	},
+		{	"BRnz",		0	},
+		{	"BRnzp",	0	},
+		{	"HALT",		15	},
+		{	"JMP",		12	},
+		{	"JSR",		4	},
+		{	"JSRR",		4	},
+		{	"LDB",		2	},
+		{	"LDW",		6	},
+		{	"LEA",		14	},
+		{	"NOP",		0	},
+		{	"NOT",		9	},
+		{	"RET",		12	},
+		{	"LSHF",		13	},
+		{	"RSHFL",	13	},
+		{	"RSHFA",	13	},
+		{	"RTI",		8	},
+		{	"STB",		3	},
+		{	"STW",		7	},
+		{	"TRAP",		15	},
+		{	"XOR",		9	}
+};
+
+
+
 
 
 
