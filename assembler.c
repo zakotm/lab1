@@ -19,11 +19,42 @@ UTEID 2:
 
 
 /*
-	Input: String to determine if it is a name of an opcode in LC-3b assembly
+	Input: String to determine if it is a name of an opcode in LC-3b assembly and to return the respective opcode value.
 	Output: The numerical opcode, or -1 if not an opcode name
 */
-int isOpcode(const char* opcodeName) {
-	printf("WARNING: isOpcode() is not yet implemented\n");
+int getOpcode(const char* opcodeName) {
+	printf("WARNING: getOpcode() is not yet implemented\n");
+	return -1;
+}
+
+
+
+/*
+	Input: String to determine if it is a name of a valid pseodo-op
+	Output: 0 if not a pseodo-op name, 1 otherwise
+*/
+int isValidPseudoOp(const char* pseudoopName) {
+	printf("WARNING: isValidPseudoOp() is not yet implemented\n");
+	return 0;
+}
+
+
+/*
+	Input: String to determine if it is a name of a valid label name
+	Output: 0 if not a valid label name, 1 if is valid
+*/
+int isValidLabel(const char* labelName) {
+	printf("WARNING: isValidLabel() is not yet implemented\n");
+	return 0;
+}
+
+
+/*
+	Input: Label to look up in symbol table
+	Output: the address of that label, or -1 if the label doesn't exist in the table
+*/
+int getLabelAddress(const char* labelName) {
+	printf("WARNING: getLabelAddress() is not yet implemented\n");
 	return -1;
 }
 
@@ -108,9 +139,9 @@ int strToNum( char * pStr )
 	#define MAX_LINE_LENGTH 255
 	enum
 	{
-	   DONE, /* end of file */
-	   OK,
-	   EMPTY_LINE
+		DONE, /* end of file */
+		OK,
+		EMPTY_LINE
 	};
 
 
@@ -140,7 +171,7 @@ int strToNum( char * pStr )
 			return( EMPTY_LINE );
 
 		/* check for label */
-	   if( isOpcode( lPtr ) == -1 && lPtr[0] != '.' ) /* found a label */
+	   if( getOpcode( lPtr ) && lPtr[0] != '.' ) /* found a label */
 	   {
 			*pLabel = lPtr;
 			if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
@@ -208,6 +239,7 @@ typedef struct {
 	char label[MAX_LABEL_LEN + 1];
 } Label;
 
+int symbolTableSize = 0;
 Label symbolTable[MAX_SYMBOLS];
  
 
@@ -245,22 +277,52 @@ int main(int argc, char* argv[]) {
 
 	char lLine[MAX_LINE_LENGTH + 1], *lLabel, *lOpcode, *lArg1, *lArg2, *lArg3, *lArg4;
 	int lRet;
+	int startAddress;
 
 
-	/* First Pass to Build Symbol Table */
 
+	/*
+		Handle .ORIG Pseudo-Op
+			- do this first since it will be needed in both passes
+			- set "startAddress" value or handle any errors
+	*/
+	/*lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );*/
+
+
+	/*
+		First Pass to Build Symbol Table
+	*/
+	int lineCount = 1;
 	do
 	{
 		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
 		if( lRet != DONE && lRet != EMPTY_LINE )
 		{
-			/* handle labels here */
+			if (strcmp(lLabel,"")) { /* if label is not blank */
+				if (isValidLabel(lLabel)) {
+					if (getLabelAddress(lLabel) == -1) {
+						strcpy(symbolTable[symbolTableSize].label, lLabel);
+						symbolTable[symbolTableSize].address = startAddress + 2*lineCount;
+						symbolTableSize++;
+					} else {
+						exit(4);
+					}
+				} else {
+					exit(4);
+				}
+			}
+
+			if (getOpcode(lOpcode) != -1) { /* lineCount only increments for each operations */
+				lineCount++;
+			}
 		}
 	} while( lRet != DONE );
 
 
 
-	/* Second Pass to Encode Operations */
+	/*
+		Second Pass to Encode Operations
+	*/
 
 	rewind(infile); /* sets file position to beginning of file */
 
@@ -283,7 +345,7 @@ int main(int argc, char* argv[]) {
 
 
 	/* Clean Up? */
-	/* do we need to clean up here? all those char* (strings) we used? */
+	/* do we need to clean up here? all those char* (strings) we used? symbolTable? */
 
 
 
