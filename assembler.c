@@ -9,13 +9,13 @@ UTEID 2:
 */
 
 
+
+
 #include <stdio.h>	/* standard input/output library */
 #include <stdlib.h>	/* Standard C Library */
 #include <string.h>	/* String operations library */
 #include <ctype.h>	/* Library for useful character operations */
 #include <limits.h>	/* Library for definitions of common variable type characteristics */
-
-
 
 
 
@@ -75,10 +75,6 @@ const OpCode opcodeLookupTable[] = {
 
 
 
-
-
-
-
 /*
 	Symbol Table definition:
 */
@@ -94,16 +90,275 @@ typedef struct {
 int symbolTableSize = 0;
 Label symbolTable[MAX_SYMBOLS];
 
-/* debugging method */
-void printSymbolTable() {
-	printf("+++Symbol Table+++\n");
-	int i;
-	for (i = 0; i < symbolTableSize; i++) {
-		printf(	"0x%.4X\t%s\n",
-				symbolTable[i].address,
-				symbolTable[i].label);
+
+
+
+
+
+
+
+/*
+	Function declarations:
+*/
+
+
+/*
+	Input: String to determine if it is a name of an opcode in LC-3b assembly and to return the respective opcode value.
+	Output: The numerical opcode, or -1 if not an opcode name
+*/
+int getOpcode(const char* opcodeName);
+
+
+/*
+	Input: String to determine if it is a name of a valid pseodo-op
+	Output: 1 if is a pseodo-op name, 0 otherwise
+*/
+int isValidPseudoOp(const char* pseudoopName);
+
+
+/*
+	Input: Lowercase string to determine if it is a name of a valid label name
+	Output: 0 if not a valid label name, 1 if is valid
+*/
+int isValidLabel(const char* labelName);
+
+
+/*
+	Input: Label to look up in symbol table
+	Output: the address of that label, or -1 if the label doesn't exist in the table
+*/
+int getLabelAddress(const char* labelName);
+
+
+/*
+	Input: Character string representation of an assembly integer.
+	Output: Integer equivalent.
+*/
+int strToNum(char * pStr);
+
+
+/*
+	Input: Opcode string, and up to 4 arguments as strings.
+	Output: The integer representation of the command in binary.
+*/
+int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4);
+
+
+/* Reads a line and parses it into pLabel, pOpcode, pArg1, pArg2, pArg3, and pArg4. All input streams are converted
+	to lower case, so all comparisons in the entire assembler are done in lower case, as everything is case
+	insensitive. */
+#define MAX_LINE_LENGTH 255
+enum
+{
+	DONE, /* end of file */
+	OK,
+	EMPTY_LINE
+};
+int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
+							char ** pArg1, char ** pArg2, char ** pArg3, char ** pArg4);
+
+
+
+
+
+
+
+/*
+	MAIN
+*/
+
+FILE* infile = NULL;
+FILE* outfile = NULL;
+
+
+
+int main(int argc, char* argv[]) {
+	
+     /* Open Source Files */
+     infile = fopen(argv[1], "r");
+     outfile = fopen(argv[2], "w");
+
+    if (!infile) {
+       printf("Error: Cannot open file %s\n", argv[1]);
+       exit(4);
 	}
-	printf("++++++++++++++++++\n");
+
+    if (!outfile) {
+       printf("Error: Cannot open file %s\n", argv[2]);
+       exit(4);
+    }
+
+
+
+
+
+
+
+
+	char lLine[MAX_LINE_LENGTH + 1], *lLabel, *lOpcode, *lArg1, *lArg2, *lArg3, *lArg4;
+	int lRet;
+	int startAddress;
+
+
+
+
+	/*
+		Handle .ORIG Pseudo-Op
+			- do this first since it will be needed in both passes
+			- set "startAddress" value or handle any errors (code 3)
+	*/
+	int foundOrigPseudOp = 0;
+
+	do {
+		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
+
+		if ( strcmp(lOpcode,".orig") == 0 ) {
+			foundOrigPseudOp = 1;
+		}
+
+		if ( !foundOrigPseudOp  &&  (strcmp(lLabel,"") != 0  ||  strcmp(lOpcode,"") != 0) ) {
+			/* there is a label or opcode before .ORIG pseudo-op */
+			printf("ERROR: Label or opcode found before \".ORIG\" %s %s\n",lLabel,lOpcode);
+			exit(4);
+		}
+
+	} while (lRet != DONE  &&  !foundOrigPseudOp);
+
+	if (!foundOrigPseudOp) {
+		printf("ERROR: No \".ORIG\" pseudo-op found\n");
+		exit(4);
+	}
+
+	/* handle orig start address */
+	startAddress = strToNum(lArg1);
+	if (startAddress % 2 == 1  ||  startAddress > MAX_ADDRESS) {
+		printf("ERROR: Invalid start address %s\n", lArg1);
+		exit(3);
+	}
+
+
+
+
+	/*
+		First Pass to Build Symbol Table
+			- will check for .ORIG and .END pseudo-op errors here to
+	*/
+	int opCount = 0;
+
+	/* vars for checking pseudo-op errors */
+	int origPseudoOpCount = 0;
+	int foundEnd = 0;
+
+	do {
+		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
+		
+		if( lRet != DONE && lRet != EMPTY_LINE ) {
+
+			/* build label symbol table */
+			if (strcmp(lLabel,"")) { /* if label is blank, there is no label on this line of the sourcecode */
+				if (isValidLabel(lLabel)  &&  getLabelAddress(lLabel) == -1) {
+
+					strcpy(symbolTable[symbolTableSize].label, lLabel);
+					symbolTable[symbolTableSize].address = startAddress + 2*opCount;
+					symbolTableSize++;
+
+				} else {
+					printf("ERROR: Invalid label %s\n",lLabel);
+					exit(4);
+				}
+			}
+
+			if (getOpcode(lOpcode) != -1) { /* lineCount only increments for each operation */
+				opCount++;
+			}
+
+
+
+			/* check for multipe .orig error */
+			if (strcmp(lOpcode,".orig") == 0) {
+				if (origPseudoOpCount > 0) {
+					printf("ERROR: Multiple \".ORIG\" pseudo-ops found\n");
+					exit(4);
+				} else {
+					origPseudoOpCount++;
+				}
+			}
+
+			/* check for ".END" pseudo-op */
+			if (strcmp(lOpcode,".end") == 0) {
+				foundEnd = 1;
+			}
+
+		}
+	} while( lRet != DONE  &&  !foundEnd);
+
+	if (!foundEnd) { /* make sure an ".END" pseudo-op was found before end of file */
+		printf("ERROR: Need a terminating pseud-op \".END\"\n");
+		exit(4);
+	}
+
+
+
+
+	/*
+		Second Pass to Encode Operations
+			- all output file writing will be done here
+	*/
+
+	rewind(infile); /* sets file position back to beginning of file */
+
+	/* write start address first */
+	fprintf( outfile, "0x%.4X\n", startAddress );
+
+	do
+	{
+		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
+
+		if( lRet != DONE && lRet != EMPTY_LINE ) {
+
+			if (isValidPseudoOp(lOpcode)  ||  getOpcode(lOpcode) != -1) {
+
+				/* handle opcodes */
+				if (getOpcode(lOpcode) != -1) {
+					int hexToWrite = encodeOpcode(&lOpcode, &lArg1, &lArg2, &lArg3, &lArg4);
+					fprintf( outfile, "0x%.4X\n", hexToWrite );
+				}
+
+				/* handle .fill pseudo-op */
+				if (strcmp(lOpcode,".fill") == 0) {
+					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) );
+				}
+
+				/* check for .END */
+				if (strcmp(lOpcode,".end") == 0) {
+					lRet = DONE;
+				}
+
+			} else {
+				printf("ERROR: Invalid opcode %s\n",lOpcode);
+				exit(2);
+			}
+		}
+	} while( lRet != DONE );
+
+
+
+
+
+
+	/* Clean Up */
+	/* do we need to clean up the symbolTable? */
+
+
+
+
+
+
+
+
+    /* Close Source Files */
+    fclose(infile);
+    fclose(outfile);
 }
 
 
@@ -116,6 +371,34 @@ void printSymbolTable() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+/*
+	Method Implementations
+*/
+
+
+
+
+/* debugging method */
+void printSymbolTable() {
+	printf("+++Symbol Table+++\n");
+	int i;
+	for (i = 0; i < symbolTableSize; i++) {
+		printf(	"0x%.4X\t%s\n",
+				symbolTable[i].address,
+				symbolTable[i].label);
+	}
+	printf("++++++++++++++++++\n");
+}
 
 
 
@@ -222,9 +505,10 @@ int getLabelAddress(const char* labelName) {
 
 
 
-
-
-
+/*
+	Input: Character string representation of an assembly integer.
+	Output: Integer equivalent.
+*/
 int strToNum( char * pStr )
 {
    char * t_ptr;
@@ -296,15 +580,6 @@ int strToNum( char * pStr )
 
 
 
-
-
-	#define MAX_LINE_LENGTH 255
-	enum
-	{
-		DONE, /* end of file */
-		OK,
-		EMPTY_LINE
-	};
 
 
 	/* Reads a line and parses it into pLabel, pOpcode, pArg1, pArg2, pArg3, and pArg4. All input streams are converted
@@ -478,206 +753,3 @@ int strToNum( char * pStr )
 
 
 
-
-
-
-
-
-
-
-
-
-
- 
-
-
-
-FILE* infile = NULL;
-FILE* outfile = NULL;
-
-
-
-
-int main(int argc, char* argv[]) {
-	
-     /* Open Source Files */
-     infile = fopen(argv[1], "r");
-     outfile = fopen(argv[2], "w");
-
-    if (!infile) {
-       printf("Error: Cannot open file %s\n", argv[1]);
-       exit(4);
-	}
-
-    if (!outfile) {
-       printf("Error: Cannot open file %s\n", argv[2]);
-       exit(4);
-    }
-
-
-
-
-
-
-
-
-	char lLine[MAX_LINE_LENGTH + 1], *lLabel, *lOpcode, *lArg1, *lArg2, *lArg3, *lArg4;
-	int lRet;
-	int startAddress;
-
-
-
-
-	/*
-		Handle .ORIG Pseudo-Op
-			- do this first since it will be needed in both passes
-			- set "startAddress" value or handle any errors (code 3)
-	*/
-	int foundOrigPseudOp = 0;
-
-	do {
-		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
-
-		if ( strcmp(lOpcode,".orig") == 0 ) {
-			foundOrigPseudOp = 1;
-		}
-
-		if ( !foundOrigPseudOp  &&  (strcmp(lLabel,"") != 0  ||  strcmp(lOpcode,"") != 0) ) {
-			/* there is a label or opcode before .ORIG pseudo-op */
-			printf("ERROR: Label or opcode found before \".ORIG\" %s %s\n",lLabel,lOpcode);
-			exit(4);
-		}
-
-	} while (lRet != DONE  &&  !foundOrigPseudOp);
-
-	if (!foundOrigPseudOp) {
-		printf("ERROR: No \".ORIG\" pseudo-op found\n");
-		exit(4);
-	}
-
-	/* handle orig start address */
-	startAddress = strToNum(lArg1);
-	if (startAddress % 2 == 1  ||  startAddress > MAX_ADDRESS) {
-		printf("ERROR: Invalid start address %s\n", lArg1);
-		exit(3);
-	}
-
-
-
-
-	/*
-		First Pass to Build Symbol Table
-			- will check for .ORIG and .END pseudo-op errors here to
-	*/
-	int opCount = 0;
-
-	/* vars for checking pseudo-op errors */
-	int origPseudoOpCount = 0;
-	int foundEnd = 0;
-
-	do {
-		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
-		
-		if( lRet != DONE && lRet != EMPTY_LINE ) {
-
-			/* build label symbol table */
-			if (strcmp(lLabel,"")) { /* if label is blank, there is no label on this line of the sourcecode */
-				if (isValidLabel(lLabel)  &&  getLabelAddress(lLabel) == -1) {
-
-					strcpy(symbolTable[symbolTableSize].label, lLabel);
-					symbolTable[symbolTableSize].address = startAddress + 2*opCount;
-					symbolTableSize++;
-
-				} else {
-					printf("ERROR: Invalid label %s\n",lLabel);
-					exit(4);
-				}
-			}
-
-			if (getOpcode(lOpcode) != -1) { /* lineCount only increments for each operation */
-				opCount++;
-			}
-
-
-
-			/* check for multipe .orig error */
-			if (strcmp(lOpcode,".orig") == 0) {
-				if (origPseudoOpCount > 0) {
-					printf("ERROR: Multiple \".ORIG\" pseudo-ops found\n");
-					exit(4);
-				} else {
-					origPseudoOpCount++;
-				}
-			}
-
-			/* check for ".END" pseudo-op */
-			if (strcmp(lOpcode,".end") == 0) {
-				foundEnd = 1;
-			}
-
-		}
-	} while( lRet != DONE  &&  !foundEnd);
-
-	if (!foundEnd) { /* make sure an ".END" pseudo-op was found before end of file */
-		printf("ERROR: Need a terminating pseud-op \".END\"\n");
-		exit(4);
-	}
-
-
-
-
-	/*
-		Second Pass to Encode Operations
-			- all output file writing will be done here
-	*/
-
-	rewind(infile); /* sets file position back to beginning of file */
-
-	/* write start address first */
-	fprintf( outfile, "0x%.4X\n", startAddress );
-
-	do
-	{
-		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
-
-		if( lRet != DONE && lRet != EMPTY_LINE ) {
-
-			if (isValidPseudoOp(lOpcode)  ||  getOpcode(lOpcode) != -1) {
-
-				/* handle opcodes */
-				if (getOpcode(lOpcode) != -1) {
-					int hexToWrite = encodeOpcode(&lOpcode, &lArg1, &lArg2, &lArg3, &lArg4);
-					fprintf( outfile, "0x%.4X\n", hexToWrite );
-				}
-
-				/* handle .fill pseudo-op */
-				if (strcmp(lOpcode,".fill") == 0) {
-					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) );
-				}
-
-			} else {
-				printf("ERROR: Invalid opcode %s\n",lOpcode);
-				exit(2);
-			}
-		}
-	} while( lRet != DONE );
-
-
-
-
-
-
-	/* Clean Up */
-	/* do we need to clean up the symbolTable? */
-
-
-
-
-
-
-
-
-    /* Close Source Files */
-    fclose(infile);
-    fclose(outfile);
-}
