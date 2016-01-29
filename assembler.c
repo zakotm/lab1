@@ -5,6 +5,7 @@ UTEID 1: mrs4239
 UTEID 2: 
 
 - What is "adequate documentation"?
+- Do we exit(2) for an invalid pseudo-op?
 */
 
 
@@ -367,6 +368,99 @@ int strToNum( char * pStr )
 
 
 
+	/*
+		Input: Opcode string, and up to 4 arguments as strings.
+		Output: The integer representation of the command in binary.
+	*/
+	int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
+		int opcodeInt = getOpcode(*lOpcode);
+
+		switch (opcodeInt) {
+
+			case 0: /* BR(nzp) or NOP */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 1: /* ADD */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 2: /* LDB */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+				
+			case 3: /* STB */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 4: /* JSR or JSRR */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 5: /* AND */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 6: /* LDW */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 7: /* STW */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 8: /* RTI */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 9: /* NOT or XOR */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 12: /* JMP or RET */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 13: /* LSHF or RSHFL or RSHFA */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 14: /* LEA */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			case 15: /* TRAP or HALT */
+				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+				return 0;
+			break;
+
+			default:
+				printf("ERROR: Opcode %s not found in Opcode Lookup Table\n",*lOpcode);
+				exit(4);
+				return 0;
+			break;
+
+		}
+	}
+
+
+
+
+
+
 
 
 
@@ -450,15 +544,21 @@ int main(int argc, char* argv[]) {
 
 		if ( !foundOrigPseudOp  &&  (strcmp(lLabel,"") != 0  ||  strcmp(lOpcode,"") != 0) ) {
 			/* there is a label or opcode before .ORIG pseudo-op */
+			printf("ERROR: Label or opcode found before \".ORIG\" %s %s\n",lLabel,lOpcode);
 			exit(4);
 		}
 
-	} while (!foundOrigPseudOp);
+	} while (lRet != DONE  &&  !foundOrigPseudOp);
+
+	if (!foundOrigPseudOp) {
+		printf("ERROR: No \".ORIG\" pseudo-op found\n");
+		exit(4);
+	}
 
 	/* handle orig start address */
 	startAddress = strToNum(lArg1);
 	if (startAddress % 2 == 1  ||  startAddress > MAX_ADDRESS) {
-		/* misaligned or too large for 16 bit adress space */
+		printf("ERROR: Invalid start address %s\n", lArg1);
 		exit(3);
 	}
 
@@ -467,12 +567,20 @@ int main(int argc, char* argv[]) {
 
 	/*
 		First Pass to Build Symbol Table
+			- will check for .ORIG and .END pseudo-op errors here to
 	*/
 	int opCount = 0;
+
+	/* vars for checking pseudo-op errors */
+	int origPseudoOpCount = 0;
+	int foundEnd = 0;
+
 	do {
 		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
 		
 		if( lRet != DONE && lRet != EMPTY_LINE ) {
+
+			/* build label symbol table */
 			if (strcmp(lLabel,"")) { /* if label is blank, there is no label on this line of the sourcecode */
 				if (isValidLabel(lLabel)  &&  getLabelAddress(lLabel) == -1) {
 
@@ -481,7 +589,7 @@ int main(int argc, char* argv[]) {
 					symbolTableSize++;
 
 				} else {
-					/* invalid label or label is already in the table */
+					printf("ERROR: Invalid label %s\n",lLabel);
 					exit(4);
 				}
 			}
@@ -489,26 +597,68 @@ int main(int argc, char* argv[]) {
 			if (getOpcode(lOpcode) != -1) { /* lineCount only increments for each operation */
 				opCount++;
 			}
+
+
+
+			/* check for multipe .orig error */
+			if (strcmp(lOpcode,".orig") == 0) {
+				if (origPseudoOpCount > 0) {
+					printf("ERROR: Multiple \".ORIG\" pseudo-ops found\n");
+					exit(4);
+				} else {
+					origPseudoOpCount++;
+				}
+			}
+
+			/* check for ".END" pseudo-op */
+			if (strcmp(lOpcode,".end") == 0) {
+				foundEnd = 1;
+			}
+
 		}
-	} while( lRet != DONE );
-	printSymbolTable();
+	} while( lRet != DONE  &&  !foundEnd);
+
+	if (!foundEnd) { /* make sure an ".END" pseudo-op was found before end of file */
+		printf("ERROR: Need a terminating pseud-op \".END\"\n");
+		exit(4);
+	}
 
 
 
 
 	/*
 		Second Pass to Encode Operations
+			- all output file writing will be done here
 	*/
 
 	rewind(infile); /* sets file position back to beginning of file */
 
+	/* write start address first */
+	fprintf( outfile, "0x%.4X\n", startAddress );
+
 	do
 	{
 		lRet = readAndParse( infile, lLine, &lLabel, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4 );
-		if( lRet != DONE && lRet != EMPTY_LINE )
-		{
-			/* encode operation here */
-			/* fprintf() */
+
+		if( lRet != DONE && lRet != EMPTY_LINE ) {
+
+			if (isValidPseudoOp(lOpcode)  ||  getOpcode(lOpcode) != -1) {
+
+				/* handle opcodes */
+				if (getOpcode(lOpcode) != -1) {
+					int hexToWrite = encodeOpcode(&lOpcode, &lArg1, &lArg2, &lArg3, &lArg4);
+					fprintf( outfile, "0x%.4X\n", hexToWrite );
+				}
+
+				/* handle .fill pseudo-op */
+				if (strcmp(lOpcode,".fill") == 0) {
+					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) );
+				}
+
+			} else {
+				printf("ERROR: Invalid opcode %s\n",lOpcode);
+				exit(2);
+			}
 		}
 	} while( lRet != DONE );
 
@@ -517,9 +667,7 @@ int main(int argc, char* argv[]) {
 
 
 
-
-
-	/* Clean Up? */
+	/* Clean Up */
 	/* do we need to clean up the symbolTable? */
 
 
