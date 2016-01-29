@@ -315,12 +315,6 @@ int main(int argc, char* argv[]) {
 		}
 	} while( lRet != DONE );
 
-	/* Clean Up */
-	/* do we need to clean up the symbolTable? */
-   /* This is a question for tomorrow's lab, A label is necessary if the program is to branch to that instruction or
-    * if the location contains data that is to be addressed explicitly
-    */
-
     /* Close Source Files */
     fclose(infile);
     fclose(outfile);
