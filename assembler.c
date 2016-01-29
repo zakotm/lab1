@@ -5,24 +5,27 @@ UTEID 1: mrs4239
 UTEID 2: za3488
 
 - What is "adequate documentation"?
+I think he means to include instruction about instruction translator, because
+the user of this code will need to understand input and output of the code.
+
+Example: ADD DR, SR, offset blah blah
+
+acceptable form of input and maybe explain output format
+
 - Do we exit(2) for an invalid pseudo-op?
+It depends about what do u mean by invalid?
+if u get something like this: .Fault
+then error 2, because it will be consider it as opcode instruction
+if we get multiple .orig, then error 4 (but we don't have to do this one anyway)
+I checked the code. It looks good so far in terms of error numbers.
+
 */
-
-
-
 
 #include <stdio.h>	/* standard input/output library */
 #include <stdlib.h>	/* Standard C Library */
 #include <string.h>	/* String operations library */
 #include <ctype.h>	/* Library for useful character operations */
 #include <limits.h>	/* Library for definitions of common variable type characteristics */
-
-
-
-
-
-
-
 
 /*
 	Op-Code Definitions:
@@ -68,13 +71,6 @@ const OpCode opcodeLookupTable[] = {
 		{	"xor",		9	}
 };
 
-
-
-
-
-
-
-
 /*
 	Symbol Table definition:
 */
@@ -89,13 +85,6 @@ typedef struct {
 
 int symbolTableSize = 0;
 Label symbolTable[MAX_SYMBOLS];
-
-
-
-
-
-
-
 
 /*
 	Function declarations:
@@ -158,11 +147,6 @@ int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
 							char ** pArg1, char ** pArg2, char ** pArg3, char ** pArg4);
 
 
-
-
-
-
-
 /*
 	MAIN
 */
@@ -188,19 +172,9 @@ int main(int argc, char* argv[]) {
        exit(4);
     }
 
-
-
-
-
-
-
-
 	char lLine[MAX_LINE_LENGTH + 1], *lLabel, *lOpcode, *lArg1, *lArg2, *lArg3, *lArg4;
 	int lRet;
 	int startAddress;
-
-
-
 
 	/*
 		Handle .ORIG Pseudo-Op
@@ -221,7 +195,6 @@ int main(int argc, char* argv[]) {
 			printf("ERROR: Label or opcode found before \".ORIG\" %s %s\n",lLabel,lOpcode);
 			exit(4);
 		}
-
 	} while (lRet != DONE  &&  !foundOrigPseudOp);
 
 	if (!foundOrigPseudOp) {
@@ -235,8 +208,6 @@ int main(int argc, char* argv[]) {
 		printf("ERROR: Invalid start address %s\n", lArg1);
 		exit(3);
 	}
-
-
 
 
 	/*
@@ -298,8 +269,6 @@ int main(int argc, char* argv[]) {
 	}
 
 
-
-
 	/*
 		Second Pass to Encode Operations
 			- all output file writing will be done here
@@ -324,6 +293,11 @@ int main(int argc, char* argv[]) {
 					fprintf( outfile, "0x%.4X\n", hexToWrite );
 				}
 
+				/* handle .orig pseudo-op */
+				if (strcmp(lOpcode,".orig") == 0) {
+					continue;
+				}
+
 				/* handle .fill pseudo-op */
 				if (strcmp(lOpcode,".fill") == 0) {
 					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) );
@@ -341,52 +315,20 @@ int main(int argc, char* argv[]) {
 		}
 	} while( lRet != DONE );
 
-
-
-
-
-
 	/* Clean Up */
 	/* do we need to clean up the symbolTable? */
-
-
-
-
-
-
-
+   /* This is a question for tomorrow's lab, A label is necessary if the program is to branch to that instruction or
+    * if the location contains data that is to be addressed explicitly
+    */
 
     /* Close Source Files */
     fclose(infile);
     fclose(outfile);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /*
 	Method Implementations
 */
-
-
-
 
 /* debugging method */
 void printSymbolTable() {
@@ -399,9 +341,6 @@ void printSymbolTable() {
 	}
 	printf("++++++++++++++++++\n");
 }
-
-
-
 
 /*
 	Input: String to determine if it is a name of an opcode in LC-3b assembly and to return the respective opcode value.
@@ -418,8 +357,6 @@ int getOpcode(const char* opcodeName) {
 
 	return -1;
 }
-
-
 
 /*
 	Input: String to determine if it is a name of a valid pseodo-op
@@ -454,9 +391,9 @@ int isValidLabel(const char* labelName) {
 	if (labelName[0] == 'x') { return 0; } /* cannot start with 'x' */
 
 	if (strcmp(labelName,"orig")==0 || strcmp(labelName,"fill")==0 ||
-			strcmp(labelName,"end")==0) { return 0; } /* cannot be opcode name*/
+			strcmp(labelName,"end")==0) { return 0; } /* cannot be an pseudo-ops name */
 
-	if (getOpcode(labelName) != -1) { return 0; } /* cannot be an operation name */
+	if (getOpcode(labelName) != -1) { return 0; } /* cannot be opcode name*/
 
 	if (isdigit(labelName[0])) { return 0; } /* cannot start with a digit */
 
@@ -576,160 +513,150 @@ int strToNum( char * pStr )
    }
 }
 
+/* Reads a line and parses it into pLabel, pOpcode, pArg1, pArg2, pArg3, and pArg4. All input streams are converted
+	to lower case, so all comparisons in the entire assembler are done in lower case, as everything is case
+	insensitive. */
+int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
+						char ** pArg1, char ** pArg2, char ** pArg3, char ** pArg4)
+{
+   char * lRet, * lPtr;
+   int i;
 
+   /* if empty, DONE */
+   if( !fgets( pLine, MAX_LINE_LENGTH, pInfile ) )
+		return( DONE );
 
+   /* convert entire line to lowercase */
+   for( i = 0; i < strlen( pLine ); i++ )
+		pLine[i] = tolower( pLine[i] );
+   *pLabel = *pOpcode = *pArg1 = *pArg2 = *pArg3 = *pArg4 = pLine + strlen(pLine);
 
+   /* ignore the comments */
+   lPtr = pLine;
+   while( *lPtr != ';' && *lPtr != '\0'  &&  *lPtr != '\n' )
+		lPtr++;
+   *lPtr = '\0'; /* set beginning of comment to delimiter of string */
 
+	/* check for empty line */
+   if( !(lPtr = strtok( pLine, "\t\n ," )) )
+		return( EMPTY_LINE );
 
-
-	/* Reads a line and parses it into pLabel, pOpcode, pArg1, pArg2, pArg3, and pArg4. All input streams are converted
-		to lower case, so all comparisons in the entire assembler are done in lower case, as everything is case
-		insensitive. */
-	int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
-							char ** pArg1, char ** pArg2, char ** pArg3, char ** pArg4)
-	{
-	   char * lRet, * lPtr;
-	   int i;
-
-	   /* if empty, DONE */
-	   if( !fgets( pLine, MAX_LINE_LENGTH, pInfile ) )
-			return( DONE );
-
-       /* convert entire line to lowercase */
-	   for( i = 0; i < strlen( pLine ); i++ )
-			pLine[i] = tolower( pLine[i] );
-	   *pLabel = *pOpcode = *pArg1 = *pArg2 = *pArg3 = *pArg4 = pLine + strlen(pLine);
-
-	   /* ignore the comments */
-	   lPtr = pLine;
-	   while( *lPtr != ';' && *lPtr != '\0'  &&  *lPtr != '\n' ) 
-			lPtr++;
-	   *lPtr = '\0'; /* set beginning of comment to delimiter of string */
-
-		/* check for empty line */
-	   if( !(lPtr = strtok( pLine, "\t\n ," )) ) 
-			return( EMPTY_LINE );
-
-		/* check for label */
-	   if( getOpcode( lPtr ) && lPtr[0] != '.' ) /* found a label */
-	   {
-			*pLabel = lPtr;
-			if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
-				return( OK );
-	   }
-	   
-	   /* set opcode */
-       *pOpcode = lPtr;
-
-       /* set parameters */
-	   if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
-	   		return( OK );
-	   	*pArg1 = lPtr;
-       if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
-       		return( OK );
-       	*pArg2 = lPtr;
-	   if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
-	   		return( OK );
-		*pArg3 = lPtr;
+	/* check for label */
+   if( getOpcode( lPtr ) == -1 && lPtr[0] != '.' ) /* found a label */
+   {
+		*pLabel = lPtr;
 		if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
 			return( OK );
-		*pArg4 = lPtr;
+   }
 
-	   return( OK );
+   /* set opcode */
+   *pOpcode = lPtr;
+
+   /* set parameters */
+   if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
+		return( OK );
+	*pArg1 = lPtr;
+   if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
+		return( OK );
+	*pArg2 = lPtr;
+   if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
+		return( OK );
+	*pArg3 = lPtr;
+	if( !( lPtr = strtok( NULL, "\t\n ," ) ) )
+		return( OK );
+	*pArg4 = lPtr;
+
+   return( OK );
+}
+
+
+/*
+	Input: Opcode string, and up to 4 arguments as strings.
+	Output: The integer representation of the command in binary.
+*/
+int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
+	int opcodeInt = getOpcode(*lOpcode);
+
+	switch (opcodeInt) {
+
+		case 0: /* BR(nzp) or NOP */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 1: /* ADD */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 2: /* LDB */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 3: /* STB */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 4: /* JSR or JSRR */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 5: /* AND */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 6: /* LDW */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 7: /* STW */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 8: /* RTI */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 9: /* NOT or XOR */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 12: /* JMP or RET */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 13: /* LSHF or RSHFL or RSHFA */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 14: /* LEA */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		case 15: /* TRAP or HALT */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+		default:
+			printf("ERROR: Opcode %s not found in Opcode Lookup Table\n",*lOpcode);
+			exit(4);
+			return 0;
+		break;
+
 	}
-
-
-
-
-
-
-	/*
-		Input: Opcode string, and up to 4 arguments as strings.
-		Output: The integer representation of the command in binary.
-	*/
-	int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
-		int opcodeInt = getOpcode(*lOpcode);
-
-		switch (opcodeInt) {
-
-			case 0: /* BR(nzp) or NOP */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 1: /* ADD */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 2: /* LDB */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-				
-			case 3: /* STB */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 4: /* JSR or JSRR */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 5: /* AND */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 6: /* LDW */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 7: /* STW */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 8: /* RTI */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 9: /* NOT or XOR */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 12: /* JMP or RET */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 13: /* LSHF or RSHFL or RSHFA */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 14: /* LEA */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			case 15: /* TRAP or HALT */
-				printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-				return 0;
-			break;
-
-			default:
-				printf("ERROR: Opcode %s not found in Opcode Lookup Table\n",*lOpcode);
-				exit(4);
-				return 0;
-			break;
-
-		}
-	}
+}
 
 
 
