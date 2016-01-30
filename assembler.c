@@ -852,7 +852,7 @@ int encodeStore(int opcodeInt, char* lArg1, char* lArg2, char* lArg3) {
 	encoded += sr << 9;
 	encoded += baser << 6;
 	encoded += offset & OFFSET_MASK;
-printInBinary16(encoded);
+
 	return encoded;
 }
 
