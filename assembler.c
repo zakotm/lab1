@@ -724,35 +724,20 @@ int encodeBR(int opcodeInt, int address, char* opcodeStr, char* labelStr) {
 
 	int encoded = opcodeInt << 12;
 
-	/* set nzp bits, check for repeats of bit tags (invalid opcode) */
+	/* set nzp bits */
 	int i;
 	if (strlen(opcodeStr) == 2) { /* unconditional branch */
 		encoded |= ( N_MASK +  Z_MASK + P_MASK );
 	}
 	for (i = 2; i < strlen(opcodeStr); i++) {
 		if (opcodeStr[i] == 'n') {
-			if (encoded & N_MASK) {
-				printf("ERROR: Invalid opcode %s\n",opcodeStr);
-				exit(2);
-			} else {
-				encoded |= N_MASK;
-			}
+			encoded |= N_MASK;
 		}
 		if (opcodeStr[i] == 'z') {
-			if (encoded & Z_MASK) {
-				printf("ERROR: Invalid opcode %s\n",opcodeStr);
-				exit(2);
-			} else {
-				encoded |= Z_MASK;
-			}
+			encoded |= Z_MASK;
 		}
 		if (opcodeStr[i] == 'p') {
-			if (encoded & P_MASK) {
-				printf("ERROR: Invalid opcode %s\n",opcodeStr);
-				exit(2);
-			} else {
-				encoded |= P_MASK;
-			}
+			encoded |= P_MASK;
 		} 
 	}
 
@@ -810,6 +795,42 @@ int encodeJSRr(char* opcodeStr, int opcodeInt, char* arg, int address) {
 }
 
 /*
+	Parse and encode LSHF, RSHFL, and RSHFA operations
+*/
+int encodeShift(int opcodeInt, char* opcodeStr, char* arg1, char* arg2, char* arg3) {
+	const int DIRECTION_BIT_MASK = 1 << 4;
+	const int ARITH_LOGIC_BIT_MASK = 1 << 5;
+
+	int encoded = opcodeInt << 12;
+
+	/* evaluate registers and constant */
+	int dr = getRegisterNumber(arg1);
+	int sr = getRegisterNumber(arg2);
+	int amount = strToNum(arg3);
+
+	/* check if amount fits in 4 bits */
+	if (amount < 0  ||  amount > 15) {
+		printf("ERROR: Invalid constant %s for %s\n",arg3,opcodeStr);
+	}
+
+	/* encode dr, sr, and amount */
+	encoded += dr << 9;
+	encoded += sr << 6;
+	encoded += amount;
+
+	/* flip bits 4 and 5 for direction and type of shift */
+	if (opcodeStr[0] == 'r') {
+		encoded |= DIRECTION_BIT_MASK;
+
+		if (opcodeStr[4] == 'a') {
+			encoded |= ARITH_LOGIC_BIT_MASK;
+		}
+	}
+
+	return encoded;
+}
+
+/*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
@@ -828,12 +849,11 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 			return encode3ArgumentAL(address,opcodeInt,*lArg1,*lArg2,*lArg3);
 		break;
 
-		case 0: /* BR(nzp) or NOP */
-			if (strcmp(*lOpcode,"nop") == 0) {
-				return 0;
-			}
-			return encodeBR(opcodeInt, address,*lOpcode,*lArg1);
+		case 13: /* LSHF or RSHFL or RSHFA */
+			return encodeShift(opcodeInt, *lOpcode, *lArg1, *lArg2, *lArg3);
 		break;
+
+
 
 		case 2: /* LDB */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
@@ -845,10 +865,6 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 			return 0;
 		break;
 
-		case 4: /* JSR or JSRR */
-			return encodeJSRr(*lOpcode, opcodeInt, *lArg1, address);
-		break;
-
 		case 6: /* LDW */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
@@ -857,6 +873,24 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 		case 7: /* STW */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
+		break;
+
+		case 14: /* LEA */
+			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
+			return 0;
+		break;
+
+
+
+		case 0: /* BR(nzp) or NOP */
+			if (strcmp(*lOpcode,"nop") == 0) {
+				return 0;
+			}
+			return encodeBR(opcodeInt, address,*lOpcode,*lArg1);
+		break;
+
+		case 4: /* JSR or JSRR */
+			return encodeJSRr(*lOpcode, opcodeInt, *lArg1, address);
 		break;
 
 		case 8: /* RTI */
@@ -870,22 +904,14 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 			return encodeJMP(opcodeInt,*lArg1);
 		break;
 
-		case 13: /* LSHF or RSHFL or RSHFA */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
-		case 14: /* LEA */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
 		case 15: /* TRAP or HALT */
 			if (strcmp(*lOpcode, "halt") == 0) {
 				return encodeTRAP(opcodeInt, "x25");
 			}
 			return encodeTRAP(opcodeInt, *lArg1);
 		break;
+
+
 
 		default:
 			printf("ERROR: Opcode %s not found in Opcode Lookup Table\n",*lOpcode);
