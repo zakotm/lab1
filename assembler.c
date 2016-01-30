@@ -239,7 +239,7 @@ int main(int argc, char* argv[]) {
 				}
 			}
 
-			if (getOpcode(lOpcode) != -1) { /* lineCount only increments for each operation */
+			if (getOpcode(lOpcode) != -1  ||  strcmp(lOpcode,".fill") == 0) { /* lineCount only increments for each operation or .FILL */
 				opCount++;
 			}
 
@@ -304,6 +304,7 @@ int main(int argc, char* argv[]) {
 				/* handle .fill pseudo-op */
 				if (strcmp(lOpcode,".fill") == 0) {
 					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) );
+					opCount++;
 				}
 
 				/* check for .END */
@@ -357,6 +358,15 @@ void printInBinary16(int word) {
 		bitMask >>= 1;
 	}
 	printf("\n");
+}
+
+/* helper method */
+int power(int base, int exponent) {
+	int i, result = 1;
+	for (i = 0; i < exponent; i++) {
+		result *= base;
+	}
+	return result;
 }
 
 /*
@@ -675,6 +685,104 @@ int encode3ArgumentAL(int address, int opcodeInt, char* lArg1, char* lArg2, char
 
 
 /*
+	Encode offset for given label
+	-will add encoded offset to the last numBits bits of opcodeToEncode
+*/
+int encodeLabelOffset(int* opcodeToEncode, int address, char* label, int numBits) {
+	/* calculate mask */
+	int BIT_MASK = -1;
+	BIT_MASK <<= numBits;
+
+	/* calculate limits */
+	int maxOffset = power(2,numBits-1) - 1;
+	int minOffset = -1 * power(2,numBits-1);
+
+	/* calculate offset */
+	int offset = ( getLabelAddress(label) - (address + 2) ) / 2; /* plus one for incremented PC */
+
+	/* check limits */
+	if (offset > maxOffset  ||  offset < minOffset) {
+		printf("ERROR: Invalid label constant, out of %i bit bounds\n",numBits);
+		exit(3); /* would this be error code 3 or 4? */
+	}
+
+	/* adjust original encoded op */
+	*opcodeToEncode &= BIT_MASK;
+	*opcodeToEncode += offset & ~BIT_MASK;
+
+
+	return *opcodeToEncode;
+}
+
+/*
+	Parse and encode Branch operation
+*/
+int encodeBR(int opcodeInt, int address, char* opcodeStr, char* labelStr) {
+	const int N_MASK = 1 << 9;
+	const int Z_MASK = 1 << 10;
+	const int P_MASK = 1 << 11;
+
+	int encoded = opcodeInt << 12;
+
+	/* set nzp bits, check for repeats of bit tags (invalid opcode) */
+	int i;
+	if (strlen(opcodeStr) == 2) { /* unconditional branch */
+		encoded |= ( N_MASK +  Z_MASK + P_MASK );
+	}
+	for (i = 2; i < strlen(opcodeStr); i++) {
+		if (opcodeStr[i] == 'n') {
+			if (encoded & N_MASK) {
+				printf("ERROR: Invalid opcode %s\n",opcodeStr);
+				exit(2);
+			} else {
+				encoded |= N_MASK;
+			}
+		}
+		if (opcodeStr[i] == 'z') {
+			if (encoded & Z_MASK) {
+				printf("ERROR: Invalid opcode %s\n",opcodeStr);
+				exit(2);
+			} else {
+				encoded |= Z_MASK;
+			}
+		}
+		if (opcodeStr[i] == 'p') {
+			if (encoded & P_MASK) {
+				printf("ERROR: Invalid opcode %s\n",opcodeStr);
+				exit(2);
+			} else {
+				encoded |= P_MASK;
+			}
+		} 
+	}
+
+	/* encode offset */
+	encodeLabelOffset(&encoded, address, labelStr, 9);
+
+	return encoded;
+}
+
+/*
+	Parse and encode TRAP operation
+*/
+int encodeTRAP(int opcodeInt, char* arg) {
+	int encoded = 0;
+	encoded += opcodeInt << 12;
+
+	int vector = strToNum(arg);
+	int maxVectorVal = power(2,8) - 1;
+
+	if (vector < 0 || vector > maxVectorVal) {
+		printf("ERROR: TRAP vector out of range  %s\n",arg);
+		exit(4);
+	}
+
+	encoded += vector;
+
+	return encoded;
+}
+
+/*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
@@ -695,9 +803,12 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 
 		case 0: /* BR(nzp) or NOP */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			if (strcmp(*lOpcode,"nop") == 0) {
+				return 0;
+			}
+			return encodeBR(opcodeInt, address,*lOpcode,*lArg1);
 		break;
+
 
 		case 2: /* LDB */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
@@ -745,8 +856,10 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 		break;
 
 		case 15: /* TRAP or HALT */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			if (strcmp(*lOpcode, "halt") == 0) {
+				return encodeTRAP(opcodeInt, "x25");
+			}
+			return encodeTRAP(opcodeInt, *lArg1);
 		break;
 
 		default:
