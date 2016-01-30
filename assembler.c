@@ -857,6 +857,37 @@ printInBinary16(encoded);
 }
 
 /*
+	Parse and encode LDB, LDW, and LEA operations.
+*/
+int encodeLoad(int opcodeInt, char* opcodeStr, int address, char* arg1, char* arg2, char* arg3) {
+	int encoded = opcodeInt << 12;
+
+	int dr = getRegisterNumber(arg1);
+	encoded += dr << 9;
+
+	if (strcmp(opcodeStr, "lea") == 0) { /* LEA */
+
+		encodeLabelOffset(&encoded, address, arg2, 9);
+
+	} else { /* LDB or LDW */
+		const int OFFSET_MASK = 0x003F; /* 6 bits */
+
+		int baser = getRegisterNumber(arg2);
+		encoded += baser << 6;
+
+		int offset = strToNum(arg3);
+		if (offset < -32  ||  offset > 31) {
+			printf("ERROR: Invalid constant, %i is out of bounds of %s\n",offset,opcodeStr);
+			exit(3);
+		}
+		encoded += offset & OFFSET_MASK;
+
+	}
+
+	return encoded;
+}
+
+/*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
@@ -881,22 +912,13 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 
 
-		case 2: /* LDB */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
+		case 2: /* LDB */		/* as far as encoding goes, LDB/LDW are the same right? */
 		case 6: /* LDW */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
 		case 14: /* LEA */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			return encodeLoad(opcodeInt, *lOpcode, address, *lArg1, *lArg2, *lArg3);
 		break;
 
-		case 3: /* STB */		/* as far as encoding goes, these are the same right? */
+		case 3: /* STB */		/* as far as encoding goes, these are the same too right? */
 		case 7: /* STW */
 			return encodeStore(opcodeInt, *lArg1, *lArg2, *lArg3);
 		break;
