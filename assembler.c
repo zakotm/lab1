@@ -831,6 +831,32 @@ int encodeShift(int opcodeInt, char* opcodeStr, char* arg1, char* arg2, char* ar
 }
 
 /*
+	Parse and encode STB and STW operations
+*/
+int encodeStore(int opcodeInt, char* lArg1, char* lArg2, char* lArg3) {
+	/* mask for front bits of offset */
+	const int OFFSET_MASK = 0x003F; /* first 6 bits */
+
+	int encoded = opcodeInt << 12;
+
+	int sr = getRegisterNumber(lArg1);
+	int baser = getRegisterNumber(lArg2);
+	int offset = strToNum(lArg3);
+
+	/* check bounds of offset */
+	if (offset > 31  ||  offset < -32) {
+		printf("ERROR: Invalid constant, offset %i for store is out of bounds\n", offset);
+		exit(3);
+	}
+
+	encoded += sr << 9;
+	encoded += baser << 6;
+	encoded += offset & OFFSET_MASK;
+printInBinary16(encoded);
+	return encoded;
+}
+
+/*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
@@ -860,17 +886,7 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 			return 0;
 		break;
 
-		case 3: /* STB */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
 		case 6: /* LDW */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
-		case 7: /* STW */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
 		break;
@@ -878,6 +894,11 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 		case 14: /* LEA */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
+		break;
+
+		case 3: /* STB */		/* as far as encoding goes, these are the same right? */
+		case 7: /* STW */
+			return encodeStore(opcodeInt, *lArg1, *lArg2, *lArg3);
 		break;
 
 
