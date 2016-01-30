@@ -19,3 +19,17 @@
 		MOV R0, x4005       ;  Move or copy the value in 0x4000+le to 0x4008
 DONE	TRAP x25		    ;The last executable instruction
 	    .END  ;The pseudo-op, delimiting the source program
+	    
+	    
+	    
+	    .ORIG X3000
+	    
+	    
+	    ; code here
+
+	    
+SOURCE	    .FILL X4000
+MASK	    .FILL X4004
+DESTNTN	    .FILL X4005
+	    
+	    .END
