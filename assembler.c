@@ -718,9 +718,9 @@ int encodeLabelOffset(int* opcodeToEncode, int address, char* label, int numBits
 	Parse and encode Branch operation
 */
 int encodeBR(int opcodeInt, int address, char* opcodeStr, char* labelStr) {
-	const int N_MASK = 1 << 9;
+	const int N_MASK = 1 << 11;
 	const int Z_MASK = 1 << 10;
-	const int P_MASK = 1 << 11;
+	const int P_MASK = 1 << 9;
 
 	int encoded = opcodeInt << 12;
 
@@ -912,13 +912,13 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 
 
-		case 2: /* LDB */		/* as far as encoding goes, LDB/LDW are the same right? */
+		case 2: /* LDB */		/* as far as encoding goes, LDB/LDW are the same right? Yeah, according to ISA manual*/
 		case 6: /* LDW */
 		case 14: /* LEA */
 			return encodeLoad(opcodeInt, *lOpcode, address, *lArg1, *lArg2, *lArg3);
 		break;
 
-		case 3: /* STB */		/* as far as encoding goes, these are the same too right? */
+		case 3: /* STB */		/* as far as encoding goes, these are the same too right? Yeah, according to ISA manual*/
 		case 7: /* STW */
 			return encodeStore(opcodeInt, *lArg1, *lArg2, *lArg3);
 		break;
