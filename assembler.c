@@ -635,12 +635,18 @@ int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
 }
 
 
-int encodeAdd(int address, int opcodeInt, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
+/* 
+	Encode 3 argrument arithmetic logic
+	- ADD, AND, XOR, and NOT all have the same opcode pattern. It is assumed that lArg3 is changed to "#-1"
+		for NOT, as to fill the last five bits with 1's.
+*/
+#define NOT_OP_ARG3 "#-1"
+int encode3ArgumentAL(int address, int opcodeInt, char* lArg1, char* lArg2, char* lArg3) {
 	const int MODE_BIT_MASK = 0x0020; /* bit 5 */
 
 	int encoded = 0;
-	int dr = getRegisterNumber(*lArg1);
-	int sr1 = getRegisterNumber(*lArg2);
+	int dr = getRegisterNumber(lArg1);
+	int sr1 = getRegisterNumber(lArg2);
 
 	/* add in opcode, dr, and sr1 to encoded */
 	encoded += opcodeInt << 12;
@@ -648,11 +654,11 @@ int encodeAdd(int address, int opcodeInt, char** lArg1, char** lArg2, char** lAr
 	encoded += sr1 << 6;
 
 	/* set flag and remaining bits, depending on mode */
-	if (isConstant(*lArg3)) { /* adding constant */
+	if (isConstant(lArg3)) { /* adding constant */
 
 		const CONST_BIT_MASK = 0x001F; /* last 5 bits */
 		encoded |= MODE_BIT_MASK;
-		int constant = strToNum(*lArg3);
+		int constant = strToNum(lArg3);
 		if (constant > MAX_5_BIT_NUM  ||  constant < MIN_5_BIT_NUM) {
 			printf("ERROR: Invalid constant, out of 5 bit range %i\n",constant);
 			exit(3);
@@ -661,7 +667,7 @@ int encodeAdd(int address, int opcodeInt, char** lArg1, char** lArg2, char** lAr
 		encoded += constant;;
 
 	} else { /* using source register */
-		encoded += getRegisterNumber(*lArg3); /* sr2 */
+		encoded += getRegisterNumber(lArg3); /* sr2 */
 	}
 
 	return encoded;
@@ -678,13 +684,19 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 	switch (opcodeInt) {
 
+		case 9: /* NOT or XOR */
+			if (strcmp(*lOpcode,"not") == 0) { /* constant for NOT should be "11111" */
+				return encode3ArgumentAL(address,opcodeInt,*lArg1,*lArg2,NOT_OP_ARG3);
+			}
+		case 1: /* ADD */
+		case 5: /* AND */
+			return encode3ArgumentAL(address,opcodeInt,*lArg1,*lArg2,*lArg3);
+		break;
+
+
 		case 0: /* BR(nzp) or NOP */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
-		break;
-
-		case 1: /* ADD */
-			return encodeAdd(address,opcodeInt,lArg1,lArg2,lArg3,lArg4);
 		break;
 
 		case 2: /* LDB */
@@ -702,11 +714,6 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 			return 0;
 		break;
 
-		case 5: /* AND */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
 		case 6: /* LDW */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
@@ -718,11 +725,6 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 		break;
 
 		case 8: /* RTI */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
-		break;
-
-		case 9: /* NOT or XOR */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
 			return 0;
 		break;
