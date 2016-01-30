@@ -38,3 +38,29 @@ OLD     .FILL x4000
 DEST    .FILL x4005
 
 	    .END  ;The pseudo-op, delimiting the source program
+	    
+	    
+	    
+	    .ORIG X3000
+	   
+	   ; initialize any vars here. If you run out of registers you can us ".FILL" to allocate memory to load and
+	   ;	store from. So "VAR1" can be a place holder to store a variable.
+	    MV R0, #4 ; let some register be your counter, and put 4 in there somehow
+	    
+LOOPSTART
+	    ; loop code here
+	    
+	    ; increment/decrement/change any vars here
+	    ADD R0, R0, #-1 ; decrement counter
+	    ; the nzp bits need to be set somehow, if "ADD" doesn't do it then look for a compare operation
+	    BRp LOOPSTART ; branch if positive bit is set, to beginning of loop
+	    
+	    
+	    HALT
+	    
+SOURCE	    .FILL X4000
+MASK	    .FILL X4004
+DESTNTN	    .FILL X4005
+VAR1	    .FILL X0000
+	    
+	    .END
