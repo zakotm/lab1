@@ -792,6 +792,24 @@ int encodeJMP(int opcodeInt, char* reg) {
 }
 
 /*
+	Parse and encode JSR and JSRR operations
+*/
+int encodeJSRr(char* opcodeStr, int opcodeInt, char* arg, int address) {
+	const MODE_BIT_MASK = 1 << 11;
+
+	int encoded = opcodeInt << 12;
+
+	if (strcmp(opcodeStr,"jsr") == 0) {
+		encoded |= MODE_BIT_MASK;
+		encodeLabelOffset(&encoded,address,arg,11);
+	} else {
+		encoded += getRegisterNumber(arg) << 6;
+	}
+
+	return encoded;
+}
+
+/*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
@@ -810,14 +828,12 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 			return encode3ArgumentAL(address,opcodeInt,*lArg1,*lArg2,*lArg3);
 		break;
 
-
 		case 0: /* BR(nzp) or NOP */
 			if (strcmp(*lOpcode,"nop") == 0) {
 				return 0;
 			}
 			return encodeBR(opcodeInt, address,*lOpcode,*lArg1);
 		break;
-
 
 		case 2: /* LDB */
 			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
@@ -830,8 +846,7 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 		break;
 
 		case 4: /* JSR or JSRR */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			return encodeJSRr(*lOpcode, opcodeInt, *lArg1, address);
 		break;
 
 		case 6: /* LDW */
