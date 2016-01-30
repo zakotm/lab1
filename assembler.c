@@ -783,6 +783,15 @@ int encodeTRAP(int opcodeInt, char* arg) {
 }
 
 /*
+	Parse and encode JMP operation
+*/
+int encodeJMP(int opcodeInt, char* reg) {
+	int encoded = opcodeInt << 12;
+	encoded += getRegisterNumber(reg) << 6;
+	return encoded;
+}
+
+/*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
@@ -836,13 +845,14 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 		break;
 
 		case 8: /* RTI */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			return opcodeInt << 12;
 		break;
 
 		case 12: /* JMP or RET */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			if (strcmp(*lOpcode, "ret") == 0) {
+				return encodeJMP(opcodeInt,"r7");
+			}
+			return encodeJMP(opcodeInt,*lArg1);
 		break;
 
 		case 13: /* LSHF or RSHFL or RSHFA */
