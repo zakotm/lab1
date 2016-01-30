@@ -3,22 +3,6 @@ Name 1: Michael Stecklein
 Name 2: Zakaria Alrmaih
 UTEID 1: mrs4239
 UTEID 2: za3488
-
-- What is "adequate documentation"?
-I think he means to include instruction about instruction translator, because
-the user of this code will need to understand input and output of the code.
-
-Example: ADD DR, SR, offset blah blah
-
-acceptable form of input and maybe explain output format
-
-- Do we exit(2) for an invalid pseudo-op?
-It depends about what do u mean by invalid?
-if u get something like this: .Fault
-then error 2, because it will be consider it as opcode instruction
-if we get multiple .orig, then error 4 (but we don't have to do this one anyway)
-I checked the code. It looks good so far in terms of error numbers.
-
 */
 
 #include <stdio.h>	/* standard input/output library */
@@ -26,6 +10,10 @@ I checked the code. It looks good so far in terms of error numbers.
 #include <string.h>	/* String operations library */
 #include <ctype.h>	/* Library for useful character operations */
 #include <limits.h>	/* Library for definitions of common variable type characteristics */
+
+#define ASCII_VALUE_0	48 /* 0 is 48 is ASCII */
+#define MAX_5_BIT_NUM	31
+#define MIN_5_BIT_NUM	-32
 
 /*
 	Op-Code Definitions:
@@ -76,7 +64,7 @@ const OpCode opcodeLookupTable[] = {
 */
 #define MAX_LABEL_LEN 20
 #define MAX_SYMBOLS 255
-#define MAX_ADDRESS 65536 /* 16bit max number */
+#define MAX_ADDRESS 65535 /* largest 16 bit number */
 
 typedef struct {
 	int address;
@@ -113,6 +101,20 @@ int isValidLabel(const char* labelName);
 
 
 /*
+	Input: String to determine if is a formatted constant, either hex (x3000) or constant (#9)
+	Output: 1 for true, 0 for false
+*/
+int isConstant(const char* constStr);
+
+
+/*
+	Input: String representation of register
+	Output: Integer of register number
+*/
+int getRegisterNumber(const char* regStr);
+
+
+/*
 	Input: Label to look up in symbol table
 	Output: the address of that label, or -1 if the label doesn't exist in the table
 */
@@ -130,7 +132,7 @@ int strToNum(char * pStr);
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
-int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4);
+int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4);
 
 
 /* Reads a line and parses it into pLabel, pOpcode, pArg1, pArg2, pArg3, and pArg4. All input streams are converted
@@ -153,8 +155,6 @@ int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
 
 FILE* infile = NULL;
 FILE* outfile = NULL;
-
-
 
 int main(int argc, char* argv[]) {
 	
@@ -275,6 +275,7 @@ int main(int argc, char* argv[]) {
 	*/
 
 	rewind(infile); /* sets file position back to beginning of file */
+	opCount = 0; /* reuse and reset opCount */
 
 	/* write start address first */
 	fprintf( outfile, "0x%.4X\n", startAddress );
@@ -289,8 +290,10 @@ int main(int argc, char* argv[]) {
 
 				/* handle opcodes */
 				if (getOpcode(lOpcode) != -1) {
-					int hexToWrite = encodeOpcode(&lOpcode, &lArg1, &lArg2, &lArg3, &lArg4);
+					int currentAddress = startAddress + 2 * opCount;
+					int hexToWrite = encodeOpcode(currentAddress, &lOpcode, &lArg1, &lArg2, &lArg3, &lArg4);
 					fprintf( outfile, "0x%.4X\n", hexToWrite );
+					opCount++;
 				}
 
 				/* handle .orig pseudo-op */
@@ -334,6 +337,26 @@ void printSymbolTable() {
 				symbolTable[i].label);
 	}
 	printf("++++++++++++++++++\n");
+}
+
+/* debugging method */
+void printInBinary16(int word) {
+	int i;
+	int bitMask = 1 << 15;
+	for (i = 0; i < 16; i++) {
+		if (i != 0  &&  i % 4 == 0) {
+			printf(" ");
+		}
+
+		if (word & bitMask) {
+			printf("%i",1);
+		} else {
+			printf("%i",0);
+		}
+
+		bitMask >>= 1;
+	}
+	printf("\n");
 }
 
 /*
@@ -398,7 +421,7 @@ int isValidLabel(const char* labelName) {
 	int i;
 	for (i = 0; i < 8; i++) {
 		char reg[] = "R ";
-		reg[1] = i + 48; /* 0 is 48 is ASCII */
+		reg[1] = i + ASCII_VALUE_0;
 		if (strcmp(labelName, reg) == 0) {
 			return 0;
 		}
@@ -415,6 +438,54 @@ int isValidLabel(const char* labelName) {
 
 	/* passes all tests, is valid label */
 	return 1;
+}
+
+
+/*
+	Input: String to determine if is a formatted constant, either hex (x3000) or constant (#9)
+	Output: 1 for true, 0 for false
+*/
+int isConstant(const char* constStr) {
+	if (!constStr  ||  strlen(constStr) < 2) {
+		return 0;
+	}
+
+	if (constStr[0] != 'x'  &&  constStr[0] != '#') {
+		return 0;
+	}
+
+	int i;
+	for (i = 1; i < strlen(constStr); i++) {
+		if (!isdigit(constStr[i])  &&  constStr[i] != '-') {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+
+/*
+	Input: String representation of register
+	Output: Integer of register number
+*/
+int getRegisterNumber(const char* regStr) {
+
+	/* all valid register strings should be of length 2, where the first char is 'r' and the second is a digit */
+	if (!regStr  ||  strlen(regStr) != 2  ||  regStr[0] != 'r'  ||  !isdigit(regStr[1])) {
+		printf("ERROR: Invalid register %s\n",regStr);
+		exit(4);
+	}
+
+	/* get register number */
+	int regNum = regStr[1] - ASCII_VALUE_0;
+
+	/* check for register in correct range */
+	if (regNum > 7  ||  regNum < 0) {
+		printf("ERROR: Invalid register %s\n",regStr);
+	}
+
+	return regNum;
 }
 
 
@@ -564,11 +635,45 @@ int readAndParse( FILE * pInfile, char * pLine, char ** pLabel, char ** pOpcode,
 }
 
 
+int encodeAdd(int address, int opcodeInt, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
+	const int MODE_BIT_MASK = 0x0020; /* bit 5 */
+
+	int encoded = 0;
+	int dr = getRegisterNumber(*lArg1);
+	int sr1 = getRegisterNumber(*lArg2);
+
+	/* add in opcode, dr, and sr1 to encoded */
+	encoded += opcodeInt << 12;
+	encoded += dr << 9;
+	encoded += sr1 << 6;
+
+	/* set flag and remaining bits, depending on mode */
+	if (isConstant(*lArg3)) { /* adding constant */
+
+		const CONST_BIT_MASK = 0x001F; /* last 5 bits */
+		encoded |= MODE_BIT_MASK;
+		int constant = strToNum(*lArg3);
+		if (constant > MAX_5_BIT_NUM  ||  constant < MIN_5_BIT_NUM) {
+			printf("ERROR: Invalid constant, out of 5 bit range %i\n",constant);
+			exit(3);
+		}
+		constant &= CONST_BIT_MASK;
+		encoded += constant;;
+
+	} else { /* using source register */
+		encoded += getRegisterNumber(*lArg3); /* sr2 */
+	}
+
+	return encoded;
+}
+
+
 /*
 	Input: Opcode string, and up to 4 arguments as strings.
 	Output: The integer representation of the command in binary.
 */
-int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
+int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char** lArg4) {
+
 	int opcodeInt = getOpcode(*lOpcode);
 
 	switch (opcodeInt) {
@@ -579,8 +684,7 @@ int encodeOpcode(char** lOpcode, char** lArg1, char** lArg2, char** lArg3, char*
 		break;
 
 		case 1: /* ADD */
-			printf("WARNING: encoding of %s not yet written\n",*lOpcode);
-			return 0;
+			return encodeAdd(address,opcodeInt,lArg1,lArg2,lArg3,lArg4);
 		break;
 
 		case 2: /* LDB */
