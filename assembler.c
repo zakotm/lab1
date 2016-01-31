@@ -912,13 +912,13 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 
 
-		case 2: /* LDB */		/* as far as encoding goes, LDB/LDW are the same right? Yeah, according to ISA manual*/
+		case 2: /* LDB */
 		case 6: /* LDW */
 		case 14: /* LEA */
 			return encodeLoad(opcodeInt, *lOpcode, address, *lArg1, *lArg2, *lArg3);
 		break;
 
-		case 3: /* STB */		/* as far as encoding goes, these are the same too right? Yeah, according to ISA manual*/
+		case 3: /* STB */
 		case 7: /* STW */
 			return encodeStore(opcodeInt, *lArg1, *lArg2, *lArg3);
 		break;
