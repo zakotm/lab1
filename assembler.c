@@ -698,7 +698,12 @@ int encodeLabelOffset(int* opcodeToEncode, int address, char* label, int numBits
 	int minOffset = -1 * power(2,numBits-1);
 
 	/* calculate offset */
-	int offset = ( getLabelAddress(label) - (address + 2) ) / 2; /* plus one for incremented PC */
+	int labelAddress = getLabelAddress(label);
+	if (labelAddress == -1) {
+		printf("ERROR: Undefined label %s\n",label);
+		exit(1);
+	}
+	int offset = ( labelAddress - (address + 2) ) / 2; /* plus one for incremented PC */
 
 	/* check limits */
 	if (offset > maxOffset  ||  offset < minOffset) {
@@ -759,7 +764,7 @@ int encodeTRAP(int opcodeInt, char* arg) {
 
 	if (vector < 0 || vector > maxVectorVal) {
 		printf("ERROR: TRAP vector out of range  %s\n",arg);
-		exit(4);
+		exit(3);
 	}
 
 	encoded += vector;
@@ -811,6 +816,7 @@ int encodeShift(int opcodeInt, char* opcodeStr, char* arg1, char* arg2, char* ar
 	/* check if amount fits in 4 bits */
 	if (amount < 0  ||  amount > 15) {
 		printf("ERROR: Invalid constant %s for %s\n",arg3,opcodeStr);
+		exit(3);
 	}
 
 	/* encode dr, sr, and amount */
