@@ -905,28 +905,6 @@ int encodeLoad(int opcodeInt, char* opcodeStr, int address, char* arg1, char* ar
 	return encoded;
 }
 
-void validateNumOperands(int n, char* arg1, char* arg2, char* arg3, char* arg4) {
-	int i;
-
-	int a[] = {	strcmp(arg1,""),
-				strcmp(arg2,""),
-				strcmp(arg3,""),
-				strcmp(arg4,"")};
-
-	for (i = 0; i < n; i++) {
-		if (a[i] == 0) {
-			printf("ERROR: Invalid number of arguments  %s %s %s %s\n",arg1,arg2,arg3,arg4);
-			exit(4);
-		}
-	}
-
-	for (i = 0; i < n; i++) {
-		if (a[i] != 0) {
-			printf("ERROR: Invalid number of arguments  %s %s %s %s\n",arg1,arg2,arg3,arg4);
-			exit(4);
-		}
-	}
-}
 
 /*
 	Input: Opcode string, and up to 4 arguments as strings.
@@ -940,17 +918,14 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 		case 9: /* NOT or XOR */
 			if (strcmp(*lOpcode,"not") == 0) { /* constant for NOT should be "11111" */
-				validateNumOperands(2,*lArg1,*lArg2,*lArg3,*lArg4);
 				return encode3ArgumentAL(address,opcodeInt,*lArg1,*lArg2,NOT_OP_ARG3);
 			}
 		case 1: /* ADD */
 		case 5: /* AND */
-			validateNumOperands(3,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encode3ArgumentAL(address,opcodeInt,*lArg1,*lArg2,*lArg3);
 		break;
 
 		case 13: /* LSHF or RSHFL or RSHFA */
-			validateNumOperands(3,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeShift(opcodeInt, *lOpcode, *lArg1, *lArg2, *lArg3);
 		break;
 
@@ -958,10 +933,8 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 		case 2: /* LDB */
 		case 6: /* LDW */
-			validateNumOperands(3,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeLoad(opcodeInt, *lOpcode, address, *lArg1, *lArg2, *lArg3);
 		case 14: /* LEA */
-			validateNumOperands(2,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeLoad(opcodeInt, *lOpcode, address, *lArg1, *lArg2, *lArg3);
 		break;
 
@@ -974,38 +947,30 @@ int encodeOpcode(int address, char** lOpcode, char** lArg1, char** lArg2, char**
 
 		case 0: /* BR(nzp) or NOP */
 			if (strcmp(*lOpcode,"nop") == 0) {
-				validateNumOperands(0,*lArg1,*lArg2,*lArg3,*lArg4);
 				return 0;
 			}
-			validateNumOperands(1,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeBR(opcodeInt, address,*lOpcode,*lArg1);
 		break;
 
 		case 4: /* JSR or JSRR */
-			validateNumOperands(1,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeJSRr(*lOpcode, opcodeInt, *lArg1, address);
 		break;
 
 		case 8: /* RTI */
-			validateNumOperands(0,*lArg1,*lArg2,*lArg3,*lArg4);
 			return opcodeInt << 12;
 		break;
 
 		case 12: /* JMP or RET */
 			if (strcmp(*lOpcode, "ret") == 0) {
-				validateNumOperands(0,*lArg1,*lArg2,*lArg3,*lArg4);
 				return encodeJMP(opcodeInt,"r7");
 			}
-			validateNumOperands(1,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeJMP(opcodeInt,*lArg1);
 		break;
 
 		case 15: /* TRAP or HALT */
 			if (strcmp(*lOpcode, "halt") == 0) {
-				validateNumOperands(0,*lArg1,*lArg2,*lArg3,*lArg4);
 				return encodeTRAP(opcodeInt, "x25");
 			}
-			validateNumOperands(1,*lArg1,*lArg2,*lArg3,*lArg4);
 			return encodeTRAP(opcodeInt, *lArg1);
 		break;
 
