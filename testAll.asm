@@ -21,7 +21,7 @@
 	RET 
 	LSHF R2, R3, #3
 	RSHFL R2, R3, #3
-	RSHFA R2, R3, #3
+R5	RSHFA R2, R3, #3
 	RTI
 	STB R4, R2, #10
 A	STW R4, R2, #10
@@ -38,4 +38,5 @@ A	STW R4, R2, #10
 Y	.FILL #263
 	.FILL #13
 	.FILL #6
+	.FILL xffff
 	.END
