@@ -303,7 +303,8 @@ int main(int argc, char* argv[]) {
 
 				/* handle .fill pseudo-op */
 				if (strcmp(lOpcode,".fill") == 0) {
-					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) );
+					int BIT_MASK_16 = 0x0000FFFF;
+					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) & BIT_MASK_16 );
 					opCount++;
 				}
 
