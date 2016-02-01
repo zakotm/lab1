@@ -744,7 +744,7 @@ int encodeLabelOffset(int* opcodeToEncode, int address, char* label, int numBits
 	/* check limits */
 	if (offset > maxOffset  ||  offset < minOffset) {
 		printf("ERROR: Invalid label constant, out of %i bit bounds\n",numBits);
-		exit(3); /* would this be error code 3 or 4? */
+		exit(4);
 	}
 
 	/* adjust original encoded op */
