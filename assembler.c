@@ -12,6 +12,8 @@ UTEID 2: za3488
 #include <limits.h>	/* Library for definitions of common variable type characteristics */
 
 #define ASCII_VALUE_0	48 /* 0 is 48 is ASCII */
+#define MAX_16_BIT_NUM	32767
+#define MIN_16_BIT_NUM	-32768
 #define MAX_5_BIT_NUM	15
 #define MIN_5_BIT_NUM	-16
 
@@ -303,8 +305,13 @@ int main(int argc, char* argv[]) {
 
 				/* handle .fill pseudo-op */
 				if (strcmp(lOpcode,".fill") == 0) {
+					int fillVal = strToNum(lArg1);
+					if (fillVal > MAX_16_BIT_NUM  ||  fillVal < MIN_16_BIT_NUM) {
+						printf("ERROR: Invalid constant for fill %s\n",lArg1);
+						exit(3);
+					}
 					int BIT_MASK_16 = 0x0000FFFF;
-					fprintf( outfile, "0x%.4X\n", strToNum(lArg1) & BIT_MASK_16 );
+					fprintf( outfile, "0x%.4X\n", fillVal & BIT_MASK_16 );
 					opCount++;
 				}
 
