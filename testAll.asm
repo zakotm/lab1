@@ -1,6 +1,7 @@
 	.ORIG #4096
         ADD R1, R1, R0
 	AND R1, R1, R2
+	ADD R0, R0, xA
 	BR Y
 	BRN A
 	BRNZ A

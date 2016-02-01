@@ -305,6 +305,10 @@ int main(int argc, char* argv[]) {
 
 				/* handle .fill pseudo-op */
 				if (strcmp(lOpcode,".fill") == 0) {
+					if (!isConstant(lArg1)) {
+						printf("ERROR: Invalid constant for .FILL %s\n",lArg1);
+						exit(4);
+					}
 					int fillVal = strToNum(lArg1);
 					if (fillVal > MAX_16_BIT_NUM  ||  fillVal < MIN_16_BIT_NUM) {
 						printf("ERROR: Invalid constant for fill %s\n",lArg1);
@@ -467,6 +471,7 @@ int isValidLabel(const char* labelName) {
 	Output: 1 for true, 0 for false
 */
 int isConstant(const char* constStr) {
+	
 	if (!constStr  ||  strlen(constStr) < 2) {
 		return 0;
 	}
@@ -475,10 +480,29 @@ int isConstant(const char* constStr) {
 		return 0;
 	}
 
-	int i;
-	for (i = 1; i < strlen(constStr); i++) {
-		if (!isdigit(constStr[i])  &&  constStr[i] != '-') {
-			return 0;
+	/* hex */
+	if (constStr[0] == 'x') {
+		int i;
+		for (i = 1; i < strlen(constStr); i++) {
+			if (i == 1  && constStr[i] == '-') {
+				/* nop */
+			} else if (!isdigit(constStr[i]) && constStr[i] != 'a' &&
+										constStr[i] != 'b' &&
+										constStr[i] != 'c' &&
+										constStr[i] != 'd' &&
+										constStr[i] != 'e' &&
+										constStr[i] != 'f') {
+				return 0;
+			}
+		}
+	} else { /* decimal */
+		int i;
+		for (i = 1; i < strlen(constStr); i++) {
+			if (i == 1 && constStr[i] == '-') {
+				/* nop */
+			} else if (!isdigit(constStr[i])) {
+				return 0;
+			}
 		}
 	}
 
