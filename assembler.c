@@ -12,8 +12,8 @@ UTEID 2: za3488
 #include <limits.h>	/* Library for definitions of common variable type characteristics */
 
 #define ASCII_VALUE_0	48 /* 0 is 48 is ASCII */
-#define MAX_5_BIT_NUM	31
-#define MIN_5_BIT_NUM	-32
+#define MAX_5_BIT_NUM	15
+#define MIN_5_BIT_NUM	-16
 
 /*
 	Op-Code Definitions:
@@ -497,6 +497,7 @@ int getRegisterNumber(const char* regStr) {
 	/* check for register in correct range */
 	if (regNum > 7  ||  regNum < 0) {
 		printf("ERROR: Invalid register %s\n",regStr);
+		exit(4);
 	}
 
 	return regNum;
