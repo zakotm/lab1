@@ -417,8 +417,8 @@ int isValidLabel(const char* labelName) {
 
 	if (labelName[0] == 'x') { return 0; } /* cannot start with 'x' */
 
-	if (strcmp(labelName,"orig")==0 || strcmp(labelName,"fill")==0 ||
-			strcmp(labelName,"end")==0) { return 0; } /* cannot be an pseudo-ops name */
+	if (strcmp(labelName,".orig")==0 || strcmp(labelName,".fill")==0 ||
+			strcmp(labelName,".end")==0) { return 0; } /* cannot be an pseudo-ops name */
 
 	if (getOpcode(labelName) != -1) { return 0; } /* cannot be opcode name*/
 
