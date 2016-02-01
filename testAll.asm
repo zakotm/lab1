@@ -2,7 +2,7 @@
         ADD R1, R1, R0
 	AND R1, R1, R2
 	BR Y
-	BRNC A
+	BRN A
 	BRNZ A
 	BRNP A
 	BRP A
