@@ -323,6 +323,9 @@ int main(int argc, char* argv[]) {
     /* Close Source Files */
     fclose(infile);
     fclose(outfile);
+
+
+    exit(0);
 }
 
 /*
